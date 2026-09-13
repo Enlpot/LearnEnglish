@@ -506,16 +506,16 @@
       saveBtn.textContent = '＋生词本';
       saveBtn.classList.remove('le-tip-done');
     }
-    // 定位：紧贴词上方居中（放不下则紧贴下方）——不留间隙，鼠标可平滑移入浮层
-    const rect = span.getBoundingClientRect();
-    if (!rect.width && !rect.height) { hideTip(); return; }
+    // 定位：跟随鼠标——显示在鼠标上方居中（跨行词不受影响）；上方放不下则显示在鼠标下方
     tip.style.display = 'block';
     const tw = tip.offsetWidth;
     const th = tip.offsetHeight;
-    let left = rect.left + rect.width / 2 - tw / 2;
-    let top = rect.top - th - 1;
-    if (top < 4) top = rect.bottom + 1;
-    left = Math.max(4, Math.min(left, window.innerWidth - tw - 4));
+    const vw = window.innerWidth;
+    let left = ev.clientX - tw / 2;
+    let top = ev.clientY - th - 10;
+    if (top < 4) top = ev.clientY + 14;
+    if (left < 4) left = 4;
+    if (left + tw > vw - 4) left = vw - tw - 4;
     tip.style.left = left + 'px';
     tip.style.top = top + 'px';
   }
