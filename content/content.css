@@ -30,3 +30,43 @@
   z-index: 2147483647;
   pointer-events: none;
 }
+
+/* 悬停浮层：中文原词 + 发音 + 生词本（fixed 顶层，不干扰页面链接点击） */
+.le-tip {
+  position: fixed;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #1f2329;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  padding: 4px 7px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  pointer-events: auto;
+  white-space: nowrap;
+  font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+.le-tip .le-tip-zh {
+  color: #ffd591;
+  font-weight: 600;
+  margin-right: 2px;
+}
+.le-tip .le-tip-btn {
+  border: 0;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.le-tip .le-tip-btn:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+.le-tip .le-tip-btn.le-tip-done {
+  background: rgba(46, 158, 91, 0.85);
+}

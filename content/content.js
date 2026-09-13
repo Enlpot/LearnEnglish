@@ -1,6 +1,6 @@
 /**
  * 网页学英语 - 内容替换引擎
- * 扫描网页中文文本，按词库/等级/比例把部分中文词替换为英文，悬停显示原词。
+ * 扫描网页中文文本，按词库/等级/比例把部分中文词替换为英文，悬停显示浮层（中文+发音+生词本）。
  * 依赖：lib/matcher.js（匹配核心）、lib/dict-core.js（核心词库）。
  * 幂等设计：替换后文本为英文，不会再次命中中文词库；重复处理无副作用。
  */
@@ -18,7 +18,7 @@
     level: 1,           // 难度等级 1=入门 2=进阶 3=高级
     ratio: 30,          // 替换比例 1-100（词级）
     extDict: true,      // 启用扩展词库(CC-CEDICT)
-    tooltip: true,      // 悬停显示原词
+    tooltip: true,      // 悬停显示浮层（中文原词 + 发音 + 生词本按钮）
     online: false,      // 在线翻译兜底
     baiduAppId: '',     // 百度翻译 APPID
     baiduKey: '',       // 百度翻译密钥
@@ -221,6 +221,7 @@
     for (let i = 0; n && i < 8; i++, n = n.parentElement) {
       if (SKIP_TAGS.has(n.tagName)) return true;
       if (n.isContentEditable) return true;
+      if (n.classList && n.classList.contains('le-tip')) return true; // 插件自身浮层，永不替换
     }
     return false;
   }
@@ -289,8 +290,7 @@
       } else {
         const span = document.createElement('span');
         span.className = 'le-word';
-        span.dataset.zh = part.zh; // 始终记录中文原文（还原/换一批时使用，不依赖 tooltip 开关）
-        if (settings.tooltip) span.title = part.zh;
+        span.dataset.zh = part.zh; // 始终记录中文原文（还原/换一批/浮层显示时使用，不依赖 tooltip 开关）
         span.textContent = part.en;
         frag.appendChild(span);
       }
@@ -306,8 +306,10 @@
         for (const node of rec.addedNodes) {
           if (node.nodeType === 1) {
             if (node.classList && node.classList.contains('le-word')) continue;
+            if (node.closest && node.closest('.le-tip')) continue; // 插件自身浮层，永不处理
             pendingNodes.push(node);
           } else if (node.nodeType === 3) {
+            if (node.parentNode && node.parentNode.closest && node.parentNode.closest('.le-tip')) continue;
             pendingNodes.push(node);
           }
         }
@@ -393,6 +395,7 @@
   // ============ 换一批词（不刷新页面） ============
   function reroll() {
     if (!started) { start(); return; }
+    hideTip(); // 词即将被还原，隐藏浮层
     // 1. 还原已替换词为中文（用 dataset.zh，不依赖 tooltip；含 Shadow DOM）
     const spans = collectLeWords(document, []);
     for (const sp of spans) {
@@ -423,8 +426,8 @@
     visibility: () => document.visibilityState
   };
 
-  // ============ 发音 & 生词本（事件委托） ============
-  let clickTimer = null;
+  // ============ 悬停浮层（中文 + 发音 + 生词本） ============
+  // 不采用点击/双击：替换词在超链接内时点击会与链接跳转冲突，改为悬停浮层按钮操作
   // 从事件路径找 .le-word（兼容 Shadow DOM：shadow 内事件 target 会被重定向为宿主）
   function findLeWord(ev) {
     const path = ev.composedPath ? ev.composedPath() : null;
@@ -437,36 +440,116 @@
     return ev.target && ev.target.closest ? ev.target.closest('.le-word') : null;
   }
 
-  function bindInteractions() {
-    // 单击发音（250ms 防双击误触）
-    document.addEventListener('click', (ev) => {
-      const span = findLeWord(ev);
-      if (!span) return;
-      clearTimeout(clickTimer);
-      clickTimer = setTimeout(() => speakWord(span.textContent), 250);
-    }, true);
-    // 双击收藏生词本
-    document.addEventListener('dblclick', (ev) => {
-      const span = findLeWord(ev);
-      if (!span) return;
-      clearTimeout(clickTimer);
-      const zh = span.title || '';
-      const en = span.textContent;
+  let tipEl = null;
+  let tipSpan = null; // 当前浮层对应的 .le-word
+  let tipHideTimer = null; // 延迟隐藏（鼠标移向浮层期间给缓冲，避免浮层一碰就消失）
+
+  function hideTipSoon() {
+    if (tipHideTimer) return;
+    tipHideTimer = setTimeout(() => {
+      tipHideTimer = null;
+      hideTip();
+    }, 220);
+  }
+
+  function cancelHideTip() {
+    if (tipHideTimer) {
+      clearTimeout(tipHideTimer);
+      tipHideTimer = null;
+    }
+  }
+
+  function ensureTip() {
+    if (tipEl) return tipEl;
+    tipEl = document.createElement('div');
+    tipEl.className = 'le-tip';
+    tipEl.style.display = 'none';
+    tipEl.innerHTML =
+      '<span class="le-tip-zh"></span>' +
+      '<button type="button" class="le-tip-btn le-tip-speak">发音</button>' +
+      '<button type="button" class="le-tip-btn le-tip-save">＋生词本</button>';
+    tipEl.querySelector('.le-tip-speak').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (tipSpan) speakWord(tipSpan.textContent);
+    });
+    tipEl.querySelector('.le-tip-save').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!tipSpan) return;
+      const zh = tipSpan.dataset.zh || '';
+      const en = tipSpan.textContent;
       addToVocab(zh, en).then((ok) => {
-        span.classList.add('le-saved');
-        if (!span.dataset.toast) {
-          span.dataset.toast = '1';
-          const tip = document.createElement('i');
-          tip.className = 'le-toast';
-          tip.textContent = ok ? '已加入生词本' : '已在生词本';
-          span.appendChild(tip);
-          setTimeout(() => {
-            if (tip.parentNode) tip.remove();
-            span.dataset.toast = '';
-          }, 1200);
-        }
+        tipSpan.classList.add('le-saved');
+        const btn = tipEl.querySelector('.le-tip-save');
+        btn.textContent = ok ? '✓已加' : '已在';
+        btn.classList.add('le-tip-done');
+        setTimeout(() => {
+          if (tipSpan && tipEl && tipEl.parentNode) {
+            btn.textContent = '＋生词本';
+            btn.classList.remove('le-tip-done');
+          }
+        }, 900);
       });
+    });
+    document.documentElement.appendChild(tipEl);
+    return tipEl;
+  }
+
+  function showTip(span, ev) {
+    if (!settings.tooltip) return; // 开关「悬停显示原词」控制浮层显示
+    const tip = ensureTip();
+    tipSpan = span;
+    const zh = span.dataset.zh || '';
+    const en = span.textContent;
+    tip.querySelector('.le-tip-zh').textContent = zh ? (zh + '：' + en) : en;
+    const saveBtn = tip.querySelector('.le-tip-save');
+    if (!span.classList.contains('le-saved')) {
+      saveBtn.textContent = '＋生词本';
+      saveBtn.classList.remove('le-tip-done');
+    }
+    // 定位：紧贴词上方居中（放不下则紧贴下方）——不留间隙，鼠标可平滑移入浮层
+    const rect = span.getBoundingClientRect();
+    if (!rect.width && !rect.height) { hideTip(); return; }
+    tip.style.display = 'block';
+    const tw = tip.offsetWidth;
+    const th = tip.offsetHeight;
+    let left = rect.left + rect.width / 2 - tw / 2;
+    let top = rect.top - th - 1;
+    if (top < 4) top = rect.bottom + 1;
+    left = Math.max(4, Math.min(left, window.innerWidth - tw - 4));
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  }
+
+  function hideTip() {
+    if (tipEl) tipEl.style.display = 'none';
+    tipSpan = null;
+  }
+
+  function bindInteractions() {
+    // mouseover：进入/移过词或浮层时，取消延迟隐藏并显示/更新浮层
+    document.addEventListener('mouseover', (ev) => {
+      const span = findLeWord(ev);
+      if (span) {
+        cancelHideTip();
+        showTip(span, ev);
+        return;
+      }
+      // 鼠标进入浮层本身（去点按钮）时取消隐藏
+      if (tipEl && tipEl.contains(ev.target)) cancelHideTip();
     }, true);
+    // mouseout：离开词或浮层时延迟隐藏（移入浮层/相邻词不隐藏；给 220ms 缓冲供鼠标跨过间隙）
+    document.addEventListener('mouseout', (ev) => {
+      const to = ev.relatedTarget;
+      if (to && to.nodeType === 1) {
+        if (tipEl && tipEl.contains(to)) return;
+        if (to.classList && to.classList.contains('le-word')) return;
+      }
+      if (tipSpan && tipSpan.contains(ev.target)) hideTipSoon();
+      else if (tipEl && tipEl.contains(ev.target)) hideTipSoon(); // 离开浮层内部任意元素（含按钮）都延迟隐藏
+    }, true);
+    // 滚动/窗口变化：定位失效，立即隐藏
+    document.addEventListener('scroll', () => { cancelHideTip(); hideTip(); }, true);
+    window.addEventListener('resize', () => { cancelHideTip(); hideTip(); });
   }
 
   function speakWord(en) {
