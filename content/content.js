@@ -51,6 +51,31 @@
     'META', 'LINK', 'OBJECT', 'EMBED', 'IFRAME', 'HEAD', 'TEMPLATE'
   ]);
 
+  // 替换词样式（content.css 内容，注入 Shadow DOM 用——页面级 CSS 不作用于 shadow 内部）
+  const LE_CSS = '.le-word{border-bottom:1px dashed #e8a33d;cursor:pointer;padding:0 1px;border-radius:2px;position:relative}.le-word:hover{background-color:rgba(232,163,61,.14)}.le-word.le-saved{border-bottom:1px solid #2e9e5b}.le-word .le-toast{position:absolute;left:0;bottom:100%;margin-bottom:2px;background:#2e9e5b;color:#fff;font-size:11px;font-style:normal;line-height:1.4;padding:2px 6px;border-radius:3px;white-space:nowrap;z-index:2147483647;pointer-events:none}';
+
+  // 递归收集所有 Shadow Root（含嵌套），用于注入样式/观察/收集词
+  function collectShadowRoots(root, out) {
+    if (!root || !root.querySelectorAll) return out;
+    for (const el of root.querySelectorAll('*')) {
+      if (el.shadowRoot) {
+        out.push(el.shadowRoot);
+        collectShadowRoots(el.shadowRoot, out);
+      }
+    }
+    return out;
+  }
+
+  // 递归收集所有 .le-word（含 Shadow DOM 内部），用于还原/统计
+  function collectLeWords(root, out) {
+    if (!root || !root.querySelectorAll) return out;
+    out.push(...root.querySelectorAll('.le-word'));
+    for (const el of root.querySelectorAll('*')) {
+      if (el.shadowRoot) collectLeWords(el.shadowRoot, out);
+    }
+    return out;
+  }
+
   // ============ 工具 ============
   function parseCustomDict(str) {
     const out = [];
@@ -200,9 +225,10 @@
     return false;
   }
 
-  function processRoot(root) {
-    if (!root) return;
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+  // 文本 TreeWalker（Edge 不支持 openShadowRoots 选项：new TreeWalker 是 Illegal constructor，
+  // document.createTreeWalker 不接受 options —— 因此对每个 open shadow root 单独遍历）
+  function createTextWalker(root) {
+    return document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
         const p = node.parentElement;
         if (!p) return NodeFilter.FILTER_REJECT;
@@ -213,9 +239,31 @@
         return NodeFilter.FILTER_ACCEPT;
       }
     });
+  }
+
+  function processRoot(root) {
+    if (!root) return;
+    // Shadow DOM 支持：收集 root 下所有 open shadow root（含嵌套），逐个遍历
+    const shadows = [];
+    collectShadowRoots(root, shadows);
+    const walkers = [createTextWalker(root)];
+    for (const sr of shadows) walkers.push(createTextWalker(sr));
     const nodes = [];
-    while (walker.nextNode()) nodes.push(walker.currentNode);
+    for (const w of walkers) {
+      while (w.nextNode()) nodes.push(w.currentNode);
+    }
     for (const node of nodes) processTextNode(node);
+    // 向 Shadow Root 注入替换词样式（页面级 CSS 不影响 shadow 内部）
+    for (const sr of shadows) {
+      if (!sr._leStyled) {
+        sr._leStyled = true;
+        try {
+          const st = document.createElement('style');
+          st.textContent = LE_CSS;
+          sr.appendChild(st);
+        } catch (e) { /* 忽略 */ }
+      }
+    }
   }
 
   function processTextNode(node) {
@@ -267,6 +315,14 @@
       if (pendingNodes.length) scheduleProcess();
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
+    // 观察已有 Shadow Root（动态内容在 shadow 内部时也能触发处理）
+    const roots = collectShadowRoots(document.documentElement, []);
+    for (const sr of roots) {
+      if (!sr._leObserved) {
+        sr._leObserved = true;
+        try { observer.observe(sr, { childList: true, subtree: true }); } catch (e) { /* 忽略 */ }
+      }
+    }
   }
 
   function scheduleProcess() {
@@ -337,9 +393,9 @@
   // ============ 换一批词（不刷新页面） ============
   function reroll() {
     if (!started) { start(); return; }
-    // 1. 还原已替换词为中文（用 dataset.zh，不依赖 tooltip）
-    const spans = document.querySelectorAll('.le-word');
-    for (const sp of Array.from(spans)) {
+    // 1. 还原已替换词为中文（用 dataset.zh，不依赖 tooltip；含 Shadow DOM）
+    const spans = collectLeWords(document, []);
+    for (const sp of spans) {
       const zh = sp.dataset.zh || '';
       if (!zh) continue;
       const txt = document.createTextNode(zh);
@@ -362,24 +418,36 @@
   // 测试钩子（isolated world，页面主世界无法访问；供 CDP 实测用）
   globalThis.__leTest = {
     reroll,
-    count: () => document.querySelectorAll('.le-word').length,
+    count: () => collectLeWords(document, []).length,
     started: () => started,
     visibility: () => document.visibilityState
   };
 
   // ============ 发音 & 生词本（事件委托） ============
   let clickTimer = null;
+  // 从事件路径找 .le-word（兼容 Shadow DOM：shadow 内事件 target 会被重定向为宿主）
+  function findLeWord(ev) {
+    const path = ev.composedPath ? ev.composedPath() : null;
+    if (path) {
+      for (const el of path) {
+        if (el && el.nodeType === 1 && el.classList && el.classList.contains('le-word')) return el;
+      }
+      return null;
+    }
+    return ev.target && ev.target.closest ? ev.target.closest('.le-word') : null;
+  }
+
   function bindInteractions() {
     // 单击发音（250ms 防双击误触）
     document.addEventListener('click', (ev) => {
-      const span = ev.target && ev.target.closest ? ev.target.closest('.le-word') : null;
+      const span = findLeWord(ev);
       if (!span) return;
       clearTimeout(clickTimer);
       clickTimer = setTimeout(() => speakWord(span.textContent), 250);
     }, true);
     // 双击收藏生词本
     document.addEventListener('dblclick', (ev) => {
-      const span = ev.target && ev.target.closest ? ev.target.closest('.le-word') : null;
+      const span = findLeWord(ev);
       if (!span) return;
       clearTimeout(clickTimer);
       const zh = span.title || '';
