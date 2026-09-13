@@ -23,7 +23,8 @@
     baiduAppId: '',     // 百度翻译 APPID
     baiduKey: '',       // 百度翻译密钥
     customDict: '',     // 自定义词表（每行 中文=English）
-    blacklist: ''       // 网站黑名单（每行一个域名）
+    blacklist: '',      // 网站黑名单（每行一个域名）
+    deferUntilVisible: true // 后台标签页暂不替换，切到前台才替换（省资源）
   };
 
   // ============ 状态 ============
@@ -37,6 +38,8 @@
   let moTimer = null;
   let pendingNodes = [];
   let observer = null;
+  let started = false;   // 是否已执行替换流程（幂等保护）
+  let visBound = false;  // visibilitychange 只绑定一次
 
   // 首尾虚词（在线候选过滤）
   const EDGE_FUNCTION = new Set(
@@ -238,6 +241,7 @@
       } else {
         const span = document.createElement('span');
         span.className = 'le-word';
+        span.dataset.zh = part.zh; // 始终记录中文原文（还原/换一批时使用，不依赖 tooltip 开关）
         if (settings.tooltip) span.title = part.zh;
         span.textContent = part.en;
         frag.appendChild(span);
@@ -294,7 +298,24 @@
     } catch (e) { /* 使用默认值 */ }
     if (!settings.enabled || isBlacklisted(location.hostname)) return;
 
-    // 随机种子：同页每次刷新替换结果不同（学习时曝光更多词）；页面生命周期内保持不变
+    // 开关开启且当前标签页在后台时：暂不替换，切到前台才执行（省资源）
+    if (settings.deferUntilVisible && document.visibilityState === 'hidden') {
+      if (!visBound) {
+        visBound = true;
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') start();
+        });
+      }
+      return;
+    }
+    start();
+  }
+
+  async function start() {
+    if (started) return;
+    started = true;
+
+    // 随机种子：同页每次刷新/换一批时替换结果不同（学习时曝光更多词）；页面生命周期内保持不变
     ratioSeed = location.hostname + ':' + Date.now() + ':' + Math.random();
     buildIndexes();
     await loadCache();
@@ -312,6 +333,39 @@
     }
     scheduleCandidateFlush();
   }
+
+  // ============ 换一批词（不刷新页面） ============
+  function reroll() {
+    if (!started) { start(); return; }
+    // 1. 还原已替换词为中文（用 dataset.zh，不依赖 tooltip）
+    const spans = document.querySelectorAll('.le-word');
+    for (const sp of Array.from(spans)) {
+      const zh = sp.dataset.zh || '';
+      if (!zh) continue;
+      const txt = document.createTextNode(zh);
+      sp.parentNode.replaceChild(txt, sp);
+    }
+    // 2. 生成新随机种子（同一页面，不重新加载）
+    ratioSeed = location.hostname + ':' + Date.now() + ':' + Math.random();
+    // 3. 按新种子重新替换
+    processRoot(document.body);
+  }
+
+  // 消息：popup「换一批词」按钮
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (msg && msg.type === 'le-reroll') {
+      reroll();
+      sendResponse({ ok: true });
+    }
+  });
+
+  // 测试钩子（isolated world，页面主世界无法访问；供 CDP 实测用）
+  globalThis.__leTest = {
+    reroll,
+    count: () => document.querySelectorAll('.le-word').length,
+    started: () => started,
+    visibility: () => document.visibilityState
+  };
 
   // ============ 发音 & 生词本（事件委托） ============
   let clickTimer = null;

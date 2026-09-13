@@ -40,4 +40,24 @@ $('optionsBtn').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
 
+// 换一批词（不刷新页面）：通知当前标签页还原并按新随机种子重新替换
+$('rerollBtn').addEventListener('click', async () => {
+  const btn = $('rerollBtn');
+  const reset = () => { btn.textContent = '换一批词（不刷新）'; };
+  try {
+    const t = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tab = t[0];
+    if (!tab || tab.id == null) throw new Error('no-tab');
+    const resp = await chrome.tabs.sendMessage(tab.id, { type: 'le-reroll' });
+    if (resp && resp.ok) {
+      btn.textContent = '已换一批';
+    } else {
+      btn.textContent = '本页不可用';
+    }
+  } catch (e) {
+    btn.textContent = '本页不可用';
+  }
+  setTimeout(reset, 1200);
+});
+
 init();

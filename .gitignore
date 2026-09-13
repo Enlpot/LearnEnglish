@@ -1,7 +1,5 @@
-﻿# 浏览器测试 profile（含隐私数据，永不提交）
-build/edge-gui-profile/
-build/edge-test-profile*/
-build/min-ext/
+﻿# 构建/测试产物目录（含浏览器测试 profile 隐私数据，永不提交）
+build/
 # 系统/编辑器临时文件
 *.log
 Thumbs.db

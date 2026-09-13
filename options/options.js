@@ -13,7 +13,8 @@ const DEFAULTS = {
   baiduAppId: '',
   baiduKey: '',
   customDict: '',
-  blacklist: ''
+  blacklist: '',
+  deferUntilVisible: true
 };
 
 const $ = (id) => document.getElementById(id);
@@ -28,6 +29,7 @@ async function load() {
   $('ratioVal').textContent = cfg.ratio + '%';
   $('extDict').checked = cfg.extDict;
   $('tooltip').checked = cfg.tooltip;
+  $('deferUntilVisible').checked = cfg.deferUntilVisible;
   $('online').checked = cfg.online;
   $('baiduAppId').value = cfg.baiduAppId;
   $('baiduKey').value = cfg.baiduKey;
@@ -43,6 +45,7 @@ async function save() {
     ratio: parseInt($('ratio').value, 10),
     extDict: $('extDict').checked,
     tooltip: $('tooltip').checked,
+    deferUntilVisible: $('deferUntilVisible').checked,
     online: $('online').checked,
     baiduAppId: $('baiduAppId').value.trim(),
     baiduKey: $('baiduKey').value.trim(),
