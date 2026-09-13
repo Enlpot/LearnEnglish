@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "网页学英语 - 边用边学",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "浏览中文网页时，把部分中文词替换为英文，边用边学。支持难度分级、替换比例、自定义词表、悬停查看原词。",
   "permissions": ["storage", "unlimitedStorage"],
   "host_permissions": ["https://fanyi-api.baidu.com/*"],

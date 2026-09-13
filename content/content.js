@@ -443,6 +443,7 @@
   let tipEl = null;
   let tipSpan = null; // 当前浮层对应的 .le-word
   let tipHideTimer = null; // 延迟隐藏（鼠标移向浮层期间给缓冲，避免浮层一碰就消失）
+  let lastScrollTime = 0; // 最近一次滚动时间（滚动会让浏览器派发"假 mouseout"，需忽略）
 
   function hideTipSoon() {
     if (tipHideTimer) return;
@@ -539,6 +540,7 @@
     }, true);
     // mouseout：离开词或浮层时延迟隐藏（移入浮层/相邻词不隐藏；给 220ms 缓冲供鼠标跨过间隙）
     document.addEventListener('mouseout', (ev) => {
+      if (Date.now() - lastScrollTime < 300) return; // 滚动引起的"假 mouseout"（鼠标物理位置未变），忽略
       const to = ev.relatedTarget;
       if (to && to.nodeType === 1) {
         if (tipEl && tipEl.contains(to)) return;
@@ -547,8 +549,29 @@
       if (tipSpan && tipSpan.contains(ev.target)) hideTipSoon();
       else if (tipEl && tipEl.contains(ev.target)) hideTipSoon(); // 离开浮层内部任意元素（含按钮）都延迟隐藏
     }, true);
-    // 滚动/窗口变化：定位失效，立即隐藏
-    document.addEventListener('scroll', () => { cancelHideTip(); hideTip(); }, true);
+    // 滚动：浮层跟随词重新定位，不消失（解决动态页面/新闻流滚动时浮层一闪即没）；词滚出视口或脱离 DOM 才隐藏
+    document.addEventListener('scroll', () => {
+      lastScrollTime = Date.now();
+      cancelHideTip();
+      if (tipSpan && tipSpan.isConnected) {
+        const r = tipSpan.getBoundingClientRect();
+        if (r.width && r.height && r.bottom > 0 && r.top < window.innerHeight) {
+          const tip = ensureTip();
+          tip.style.display = 'block';
+          const tw = tip.offsetWidth;
+          const th = tip.offsetHeight;
+          let left = r.left + r.width / 2 - tw / 2;
+          let top = r.top - th - 10;
+          if (top < 4) top = r.bottom + 10;
+          left = Math.max(4, Math.min(left, window.innerWidth - tw - 4));
+          tip.style.left = left + 'px';
+          tip.style.top = top + 'px';
+          return;
+        }
+      }
+      hideTip();
+    }, true);
+    // 窗口尺寸变化：浮层错位，隐藏
     window.addEventListener('resize', () => { cancelHideTip(); hideTip(); });
   }
 
