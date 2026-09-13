@@ -1,0 +1,38 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Package extension zip
+        run: |
+          mkdir -p dist
+          zip -r dist/learn-english-extension.zip \
+            manifest.json background.js content lib options popup icons README.md
+          ls -lh dist/
+
+      - name: Upload artifact (manual run)
+        uses: actions/upload-artifact@v4
+        with:
+          name: learn-english-extension
+          path: dist/*.zip
+          if-no-files-found: error
+
+      - name: Create GitHub Release (tag push)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
