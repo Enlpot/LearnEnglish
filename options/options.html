@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>网页学英语 - 设置</title>
+<link rel="stylesheet" href="options.css">
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>网页学英语 - 设置</h1>
+    <p class="sub">浏览中文网页时，把部分中文词替换为英文，边用边学</p>
+  </header>
+
+  <section class="card">
+    <h2>总开关</h2>
+    <label class="switch-row">
+      <span>启用替换</span>
+      <input type="checkbox" id="enabled" class="switch">
+    </label>
+  </section>
+
+  <section class="card">
+    <h2>学习难度</h2>
+    <div class="radio-group" id="levelGroup">
+      <label><input type="radio" name="level" value="1"> 入门 <small>搜索、登录、首页等最常用词</small></label>
+      <label><input type="radio" name="level" value="2"> 进阶 <small>订阅、置顶、优惠券等常用词</small></label>
+      <label><input type="radio" name="level" value="3"> 高级 <small>审阅、批量、权限等书面词</small></label>
+    </div>
+    <p class="hint">等级越高，被替换的界面词越多越难。建议从入门开始。</p>
+  </section>
+
+  <section class="card">
+    <h2>替换比例</h2>
+    <div class="ratio-row">
+      <input type="range" id="ratio" min="10" max="100" step="10">
+      <span id="ratioVal" class="ratio-val">30%</span>
+    </div>
+    <p class="hint">同一网页内，命中词按此比例被替换。比例低更易读懂，比例高学得多。</p>
+  </section>
+
+  <section class="card">
+    <h2>功能选项</h2>
+    <label class="check-row">
+      <input type="checkbox" id="extDict"> 启用扩展词库（内置 9.6 万词，覆盖正文词汇）
+    </label>
+    <label class="check-row">
+      <input type="checkbox" id="tooltip"> 悬停英文词时显示中文原词
+    </label>
+  </section>
+
+  <section class="card">
+    <h2>在线翻译兜底（可选）</h2>
+    <p class="hint">本地词库未命中的生僻词/新词，可通过百度翻译免费 API 实时翻译并缓存。缓存后同词不再请求，长期使用几乎无网络依赖。</p>
+    <label class="check-row">
+      <input type="checkbox" id="online"> 启用在线翻译兜底
+    </label>
+    <div class="field-row">
+      <label for="baiduAppId">APP ID</label>
+      <input type="text" id="baiduAppId" placeholder="百度翻译开放平台申请的 APP ID">
+    </div>
+    <div class="field-row">
+      <label for="baiduKey">密钥</label>
+      <input type="password" id="baiduKey" placeholder="对应的密钥">
+    </div>
+    <p class="hint">申请地址：fanyi-api.baidu.com（通用翻译-标准版，免费不限字符量）。不填写时仅使用本地词库。</p>
+  </section>
+
+  <section class="card">
+    <h2>自定义词表</h2>
+    <p class="hint">每行一条：<code>中文=English</code>。自定义词优先于内置词库，适合你常逛的网站专属词。</p>
+    <textarea id="customDict" rows="6" placeholder="例如：&#10;赛博朋克=Cyberpunk&#10;特种兵式旅游=Blitz Travel"></textarea>
+  </section>
+
+  <section class="card">
+    <h2>网站黑名单</h2>
+    <p class="hint">这些网站不替换。每行一个域名，支持 <code>*.example.com</code> 通配。</p>
+    <textarea id="blacklist" rows="4" placeholder="例如：&#10;mail.google.com&#10;*.bank.example.com"></textarea>
+  </section>
+
+  <section class="card">
+    <h2>生词本 <span id="vocabCount" class="badge"></span></h2>
+    <p class="hint">在网页上<b>单击</b>替换出的英文词可发音，<b>双击</b>收藏到生词本。最多保留 500 条，可导出复习。</p>
+    <div id="vocabList" class="vocab-list"></div>
+    <div class="vocab-actions">
+      <button id="exportVocab">导出 CSV</button>
+      <button id="clearVocab" class="danger">清空生词本</button>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button id="saveBtn" class="primary">保存设置</button>
+    <span id="status" class="status"></span>
+  </div>
+
+  <footer>
+    <p>词库来源：核心词库（本插件内置 900+ 词）+ CC-CEDICT 开源汉英词典（CC BY-SA，96,000+ 词）。所有数据均保存在本地浏览器，无云端上传。</p>
+  </footer>
+</div>
+<script src="options.js"></script>
+</body>
+</html>

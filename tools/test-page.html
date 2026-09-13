@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>网页学英语 - 测试页面</title>
+<style>
+  body { font-family: "Microsoft YaHei", sans-serif; margin: 0; }
+  nav { background: #333; color: #fff; padding: 10px 20px; }
+  nav a { color: #fff; margin-right: 16px; text-decoration: none; }
+  .container { max-width: 800px; margin: 20px auto; padding: 0 16px; }
+  button { padding: 8px 18px; margin: 6px; }
+  .card { border: 1px solid #ddd; padding: 16px; margin: 16px 0; border-radius: 8px; }
+  footer { background: #f4f4f4; padding: 14px 20px; margin-top: 30px; color: #666; }
+  #result { background: #eef7ff; border: 1px solid #bcd; padding: 10px 14px; border-radius: 6px; margin: 16px 0; font-size: 13px; }
+</style>
+</head>
+<body>
+<nav>
+  <a href="#">首页</a>
+  <a href="#">搜索</a>
+  <a href="#">购物车</a>
+  <a href="#">我的订单</a>
+  <a href="#">收藏夹</a>
+  <a href="#">设置</a>
+  <a href="#">帮助中心</a>
+</nav>
+
+<div class="container">
+  <h1>欢迎使用测试页面</h1>
+  <p>这是一段正文：用户可以在浏览网页时学习英语，点击搜索按钮查找商品信息，价格与库存一目了然。请先登录或注册账号，确认收货地址后提交订单。</p>
+
+  <div class="card">
+    <h2>界面操作区</h2>
+    <button>登录</button>
+    <button>注册</button>
+    <button>立即购买</button>
+    <button>加入购物车</button>
+    <button>确认订单</button>
+    <button>提交订单</button>
+    <button>取消</button>
+    <button>保存</button>
+    <button>删除</button>
+    <button>刷新</button>
+    <button>下载</button>
+    <button>分享</button>
+  </div>
+
+  <div class="card">
+    <h2>进阶词测试</h2>
+    <p>订阅频道、置顶消息、查看优惠券与积分兑换，开通会员享受专属特权。</p>
+  </div>
+
+  <div class="card">
+    <h2>正文内容测试（扩展词库）</h2>
+    <p>今天天气很好，我们去公园散步，顺便到超市购买新鲜水果和蔬菜，晚上回家做饭。</p>
+  </div>
+
+  <div id="result">检测中...</div>
+</div>
+
+<footer>版权所有 © 2026 测试站点 | 关于我们 | 联系我们 | 隐私政策 | 服务条款</footer>
+
+<script>
+  // 自检：3 秒后统计替换结果并显示在页面上
+  setTimeout(() => {
+    const words = document.querySelectorAll('.le-word');
+    const n = words.length;
+    const sample = Array.from(words).slice(0, 12)
+      .map(s => s.textContent + '(' + (s.title || '?') + ')').join('  ');
+    document.getElementById('result').textContent =
+      '自检结果：共替换 ' + n + ' 处。示例：' + sample;
+  }, 3000);
+</script>
+</body>
+</html>

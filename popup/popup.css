@@ -1,0 +1,56 @@
+:root {
+  --text: #1f2329;
+  --muted: #646a73;
+  --accent: #2b6cb0;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  width: 240px;
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--text);
+}
+.pop { padding: 14px; }
+.title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  cursor: pointer;
+}
+input[type="checkbox"].switch {
+  appearance: none;
+  width: 40px; height: 21px;
+  border-radius: 11px;
+  background: #c8ccd4;
+  position: relative;
+  cursor: pointer;
+  transition: background .2s;
+}
+input[type="checkbox"].switch::after {
+  content: "";
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 17px; height: 17px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left .2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,.2);
+}
+input[type="checkbox"].switch:checked { background: var(--accent); }
+input[type="checkbox"].switch:checked::after { left: 21px; }
+.state { color: var(--muted); font-size: 12px; margin: 8px 0 12px; }
+.vocab-line { color: var(--muted); font-size: 12px; margin: -6px 0 10px; }
+button {
+  width: 100%;
+  background: #fff;
+  color: var(--accent);
+  border: 1px solid #d5dbe3;
+  border-radius: 7px;
+  padding: 7px 0;
+  font-size: 13px;
+  cursor: pointer;
+}
+button:hover { background: #f2f6fb; }

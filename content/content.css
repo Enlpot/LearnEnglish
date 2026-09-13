@@ -1,0 +1,32 @@
+/* 网页学英语 - 被替换单词样式 */
+.le-word {
+  border-bottom: 1px dashed #e8a33d;
+  cursor: pointer;
+  padding: 0 1px;
+  border-radius: 2px;
+  position: relative;
+}
+.le-word:hover {
+  background-color: rgba(232, 163, 61, 0.14);
+}
+/* 已收藏生词 */
+.le-word.le-saved {
+  border-bottom: 1px solid #2e9e5b;
+}
+/* 收藏提示气泡 */
+.le-word .le-toast {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  margin-bottom: 2px;
+  background: #2e9e5b;
+  color: #fff;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.4;
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  z-index: 2147483647;
+  pointer-events: none;
+}
