@@ -25,14 +25,11 @@ async function init() {
   }
 
   sw.addEventListener('change', async () => {
-    await chrome.storage.local.set({
-      settings: { ...cfg, enabled: sw.checked }
-    });
-    // 变更会触发 content script 重载页面应用/还原
-    const t = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (t[0] && t[0].id != null) {
-      chrome.tabs.reload(t[0].id);
-    }
+    // 重新读取当前设置再合并，避免覆盖设置页的并发修改
+    const cur = await chrome.storage.local.get('settings');
+    const merged = { ...DEFAULTS, ...(cur.settings || {}), enabled: sw.checked };
+    await chrome.storage.local.set({ settings: merged });
+    // storage 变更会通知各页面 content script 即时应用（还原/重新替换），无需刷新
   });
 }
 

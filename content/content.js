@@ -268,6 +268,7 @@
   }
 
   function processTextNode(node) {
+    if (!settings.enabled) return; // 开关已关闭：不再替换（含动态加载的新内容）
     const text = node.nodeValue;
     if (!text || !CN_RE.test(text)) return;
     const opts = {
@@ -342,10 +343,25 @@
     }, 200);
   }
 
-  // ============ 设置变更 ============
+  // ============ 设置变更（即时生效，不刷新页面） ============
+  // popup 开关 / 设置页保存都会写入 storage.settings，这里直接应用：
+  // 关闭（或命中黑名单）→ 还原为中文；开启 → 重新替换（含按需加载扩展词库）
   function onSettingsChanged(changes, area) {
     if (area !== 'local' || !changes.settings) return;
-    location.reload();
+    applySettings(changes.settings.newValue);
+  }
+
+  async function applySettings(ns) {
+    settings = { ...DEFAULTS, ...(ns || {}) };
+    if (!settings.enabled || isBlacklisted(location.hostname)) {
+      restoreAll();
+      return;
+    }
+    if (!started) { start(); return; } // 未启动（后台 defer / 刚注入）：start() 内部幂等并按新设置执行
+    if (settings.extDict && !extIndex) await loadExtDict(); // 扩展词库由关转开时按需加载
+    restoreAll();
+    ratioSeed = location.hostname + ':' + Date.now() + ':' + Math.random();
+    processRoot(document.body);
   }
 
   // ============ 启动 ============
@@ -392,11 +408,10 @@
     scheduleCandidateFlush();
   }
 
-  // ============ 换一批词（不刷新页面） ============
-  function reroll() {
-    if (!started) { start(); return; }
+  // ============ 还原为中文 / 换一批词（均不刷新页面） ============
+  // 还原页面上所有已替换词为中文原文（含 Shadow DOM），关闭开关/换一批词/设置变更时使用
+  function restoreAll() {
     hideTip(); // 词即将被还原，隐藏浮层
-    // 1. 还原已替换词为中文（用 dataset.zh，不依赖 tooltip；含 Shadow DOM）
     const spans = collectLeWords(document, []);
     for (const sp of spans) {
       const zh = sp.dataset.zh || '';
@@ -404,9 +419,13 @@
       const txt = document.createTextNode(zh);
       sp.parentNode.replaceChild(txt, sp);
     }
-    // 2. 生成新随机种子（同一页面，不重新加载）
+  }
+
+  // 换一批词：还原 → 生成新随机种子 → 重新替换（同一页面，不重新加载）
+  function reroll() {
+    if (!started) { start(); return; }
+    restoreAll();
     ratioSeed = location.hostname + ':' + Date.now() + ':' + Math.random();
-    // 3. 按新种子重新替换
     processRoot(document.body);
   }
 

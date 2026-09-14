@@ -54,7 +54,7 @@ async function save() {
   };
   await chrome.storage.local.set({ settings: cfg });
   const st = $('status');
-  st.textContent = '已保存，打开的网页将自动刷新生效';
+  st.textContent = '已保存，已打开的网页立即生效（无需刷新）';
   st.className = 'status ok';
   setTimeout(() => { st.textContent = ''; st.className = 'status'; }, 3000);
 }
